@@ -1,0 +1,203 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+
+const API_BASE = "http://192.168.1.14:8080";
+
+export default function Dashboard() {
+  const router = useRouter();
+  const [connectedIps, setConnectedIps] = useState<string[]>([]);
+  const [blockedIps, setBlockedIps] = useState<string[]>([]);
+  const [newIp, setNewIp] = useState("");
+  const [ports, setPorts] = useState<any>({});
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      router.push("/login");
+    }
+  }, []);
+
+  const fetchIps = async () => {
+    const [connected, blocked] = await Promise.all([
+      fetch(`${API_BASE}/connected_ips`).then((res) => res.json()),
+      fetch(`${API_BASE}/blocked_ips`).then((res) => res.json()),
+    ]);
+    setConnectedIps(connected);
+    setBlockedIps(blocked);
+  };
+
+  const fetchPorts = async () => {
+    const res = await fetch(`${API_BASE}/ports`);
+    const data = await res.json();
+    setPorts(data);
+  };
+
+  const blockIp = async () => {
+    await fetch(`${API_BASE}/block_ip`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ip: newIp }),
+    });
+    setNewIp("");
+    fetchIps();
+  };
+
+  const unblockIp = async (ip: string) => {
+    await fetch(`${API_BASE}/unblock_ip`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ip }),
+    });
+    fetchIps();
+  };
+
+  const blockPort = async (dpid: string, port_no: number) => {
+    await fetch(`${API_BASE}/block_port`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dpid, port_no }),
+    });
+    fetchPorts();
+  };
+
+  const unblockPort = async (dpid: string, port_no: number) => {
+    await fetch(`${API_BASE}/unblock_port`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dpid, port_no }),
+    });
+    fetchPorts();
+  };
+
+  useEffect(() => {
+    fetchIps();
+    fetchPorts();
+  }, []);
+
+  return (
+    <div className="p-6">
+      <div className="flex justify-end mb-4">
+        <Button
+          variant="outline"
+          onClick={() => {
+            localStorage.removeItem("token");
+            router.push("/login");
+          }}
+        >
+          Logout
+        </Button>
+      </div>
+
+      <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
+        {/* Card IP đang kết nối */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Connected IPs</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {connectedIps.map((ip) => (
+              <div key={ip}>{ip}</div>
+            ))}
+          </CardContent>
+        </Card>
+
+        {/* Card IP bị chặn */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Blocked IPs</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {blockedIps.map((ip) => (
+              <div key={ip} className="flex justify-between items-center py-1">
+                <span>{ip}</span>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => unblockIp(ip)}
+                >
+                  Unblock
+                </Button>
+              </div>
+            ))}
+            <div className="mt-4 flex gap-2">
+              <Input
+                value={newIp}
+                onChange={(e) => setNewIp(e.target.value)}
+                placeholder="Enter IP to block"
+              />
+              <Button onClick={blockIp}>Block</Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Card Switch Ports */}
+        <Card className="col-span-1 md:col-span-2">
+          <CardHeader>
+            <CardTitle>Switch Ports</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {Object.entries(ports).map(([dpid, info]: any) => (
+              <div key={dpid} className="mb-6">
+                <h3 className="font-bold text-lg mb-2">Switch: {dpid}</h3>
+                <table className="w-full border text-sm">
+                  <thead>
+                    <tr className="bg-gray-100">
+                      <th className="border px-2 py-1">Port No</th>
+                      <th className="border px-2 py-1">Name</th>
+                      <th className="border px-2 py-1">HW Addr</th>
+                      <th className="border px-2 py-1">Status</th>
+                      <th className="border px-2 py-1">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {info.all_ports.map((port: any) => (
+                      <tr key={port.port_no}>
+                        <td className="border px-2 py-1">{port.port_no}</td>
+                        <td className="border px-2 py-1">{port.name}</td>
+                        <td className="border px-2 py-1">{port.hw_addr}</td>
+                        <td className="border px-2 py-1">
+                          {info.blocked_ports.includes(port.port_no)
+                            ? "Blocked"
+                            : "Active"}
+                        </td>
+                        <td className="border px-2 py-1">
+                          {info.blocked_ports.includes(port.port_no) ? (
+                            <Button
+                              size="sm"
+                              variant="default"
+                              onClick={() => unblockPort(dpid, port.port_no)}
+                            >
+                              Unblock
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => blockPort(dpid, port.port_no)}
+                            >
+                              Block
+                            </Button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
