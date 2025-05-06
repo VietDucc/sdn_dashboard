@@ -2,12 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
@@ -19,6 +14,13 @@ export default function Dashboard() {
   const [blockedIps, setBlockedIps] = useState<string[]>([]);
   const [newIp, setNewIp] = useState("");
   const [ports, setPorts] = useState<any>({});
+  const [thresholds, setThresholds] = useState<{ [key: string]: number }>({});
+  const [newThresholds, setNewThresholds] = useState<{ [key: string]: string }>(
+    {}
+  );
+  const [hostToSwitch, setHostToSwitch] = useState<
+    { ip: string; switch: string; port: number }[]
+  >([]);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -40,6 +42,23 @@ export default function Dashboard() {
     const res = await fetch(`${API_BASE}/ports`);
     const data = await res.json();
     setPorts(data);
+  };
+
+  const fetchThresholds = async () => {
+    const res = await fetch(`${API_BASE}/thresholds`);
+    const data = await res.json();
+    setThresholds(data);
+    const initialInputs: { [key: string]: string } = {};
+    Object.keys(data).forEach((dpid) => {
+      initialInputs[dpid] = data[dpid].toString();
+    });
+    setNewThresholds(initialInputs);
+  };
+
+  const fetchHostToSwitch = async () => {
+    const res = await fetch(`${API_BASE}/host_to_switch`);
+    const data = await res.json();
+    setHostToSwitch(data);
   };
 
   const blockIp = async () => {
@@ -79,9 +98,24 @@ export default function Dashboard() {
     fetchPorts();
   };
 
+  const updateThreshold = async (dpid: string) => {
+    const value = parseFloat(newThresholds[dpid]);
+    if (isNaN(value)) return alert("Invalid threshold value");
+
+    await fetch(`${API_BASE}/threshold`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dpid: parseInt(dpid), threshold: value }),
+    });
+
+    fetchThresholds();
+  };
+
   useEffect(() => {
     fetchIps();
     fetchPorts();
+    fetchThresholds();
+    fetchHostToSwitch();
   }, []);
 
   return (
@@ -99,7 +133,7 @@ export default function Dashboard() {
       </div>
 
       <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
-        {/* Card IP đang kết nối */}
+        {/* Connected IPs */}
         <Card>
           <CardHeader>
             <CardTitle>Connected IPs</CardTitle>
@@ -111,7 +145,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Card IP bị chặn */}
+        {/* Blocked IPs */}
         <Card>
           <CardHeader>
             <CardTitle>Blocked IPs</CardTitle>
@@ -140,7 +174,51 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Card Switch Ports */}
+        {/* Host to Switch Mapping */}
+        <Card className="col-span-1 md:col-span-2">
+          <CardHeader>
+            <CardTitle>Host Connections</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {hostToSwitch.length === 0 && <p>No host connection data.</p>}
+            {hostToSwitch.map((entry, index) => (
+              <div key={index} className="py-1">
+                <span>
+                  IP <strong>{entry.ip}</strong> → Switch{" "}
+                  <strong>{entry.switch}</strong>, Port{" "}
+                  <strong>{entry.port}</strong>
+                </span>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+        {/* Switch Thresholds */}
+        <Card className="col-span-1 md:col-span-2">
+          <CardHeader>
+            <CardTitle>Switch Thresholds</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {Object.entries(thresholds).map(([dpid, value]) => (
+              <div key={dpid} className="flex items-center gap-4 mb-3">
+                <span className="font-semibold">Switch {dpid}:</span>
+                <Input
+                  type="number"
+                  value={newThresholds[dpid] || ""}
+                  onChange={(e) =>
+                    setNewThresholds({
+                      ...newThresholds,
+                      [dpid]: e.target.value,
+                    })
+                  }
+                  className="w-32"
+                />
+                <Button onClick={() => updateThreshold(dpid)}>Update</Button>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        {/* Switch Ports */}
         <Card className="col-span-1 md:col-span-2">
           <CardHeader>
             <CardTitle>Switch Ports</CardTitle>
