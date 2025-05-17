@@ -11,7 +11,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
-const API_BASE = "http://192.168.1.14:8080";
+const API_BASE = "http://192.168.141.128:8080";
 
 export default function Dashboard() {
   const router = useRouter();
