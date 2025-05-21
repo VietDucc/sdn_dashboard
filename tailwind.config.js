@@ -1,10 +1,14 @@
-/** @type {import('tailwindcss').Config} */
+// tailwind.config.js
 module.exports = {
   content: [
-    "./src/**/*.{html,js,jsx,ts,tsx}", // Điều chỉnh theo cấu trúc dự án của bạn
+    "./src/**/*.{js,ts,jsx,tsx}", // hoặc đường dẫn phù hợp với dự án của bạn
   ],
   theme: {
-    extend: {},
+    extend: {
+      borderColor: {
+        border: "hsl(var(--border))",
+      },
+    },
   },
   plugins: [],
 };
