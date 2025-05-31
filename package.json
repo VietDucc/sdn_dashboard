@@ -12,7 +12,7 @@
     "@radix-ui/react-alert-dialog": "^1.1.11",
     "@radix-ui/react-slot": "^1.2.0",
     "@radix-ui/react-tabs": "^1.1.9",
-    "@radix-ui/react-toast": "^1.2.11",
+    "@radix-ui/react-toast": "^1.2.13",
     "@shadcn/ui": "^0.0.4",
     "@stitches/react": "^1.2.8",
     "axios": "^1.9.0",
